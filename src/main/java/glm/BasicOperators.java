@@ -3567,7 +3567,7 @@ abstract class BasicOperators extends SpecialOperators {
     public static Vec4 mul(Vec4 res, Vec4 a, float bX, float bY, float bZ, float bW) {
         res.x = a.x * bX;
         res.y = a.y * bY;
-        res.y = a.z * bZ;
+        res.z = a.z * bZ;
         res.w = a.w * bW;
         return res;
     }

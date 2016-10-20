@@ -1,15 +1,13 @@
+import glm.Glm;
+import glm.vec._3.Vec3;
+import glm.vec._4.Vec4;
 import light.Light;
-import material.Material;
 import scene.Scene;
+import scene.SceneParser;
 import sceneobjects.SceneObject;
-import sceneobjects.Sphere;
 import utils.Constants;
 import utils.Intersection;
 import utils.Ray;
-import glm.Glm;
-import glm.mat._4.Mat4;
-import glm.vec._3.Vec3;
-import glm.vec._4.Vec4;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -17,9 +15,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * Created by Swinny on 10/18/2016.
- */
 public class RayTracer
 {
     private Scene scene;
@@ -38,27 +33,7 @@ public class RayTracer
 
     public static void main(String [] beans)
     {
-        Scene scene = new Scene(512, 0.5);
-        scene.setBackgroundColor(new Vec3(1.0, 1.0, 1.0));
-        scene.setAmbientLight(new Vec3(0.2, 0.2, 0.2));
-
-        Mat4 transform = new Mat4(1.0f);
-        transform.translate(new Vec3(0.0, 0.0, -2.0));
-
-        Material mat = new Material(
-                new Vec3(1.0, 0.0, 0.0),
-                new Vec3(0.2, 0.2, 0.2),
-                new Vec3(0.5, 0.5, 0.5),
-                30.0,
-                Constants.AIR_REFRACTIVE_INDEX);
-
-        Sphere sphere = new Sphere(transform);
-        sphere.setMaterial(mat);
-        scene.getSceneObjects().add(sphere);
-
-        Light light = new Light(new Vec3(1.0f, 1.0f, 200.0f),
-                new Vec3(0.0f, 255.0f, 0.0f));
-        scene.getLights().add(light);
+        Scene scene = new SceneParser(new File("simple.scn")).parseSceneFile();
 
         new RayTracer(scene);
     }
@@ -125,7 +100,7 @@ public class RayTracer
             }
         }
 
-        if(tMin == Constants.INFINITY || currentObject == null)
+        if(tMin == Constants.INFINITY)
             return this.scene.getBackgroundColor();
 
         Vec4 uPrime = new Vec4(currentObject.getIT().mul_(ray.getOrigin()));
@@ -134,34 +109,73 @@ public class RayTracer
         Vec3 pWorld = new Vec3(ray.getOrigin()).add_(new Vec3(ray.getDirection()).mul_((float) tMin));
         Vec3 p = new Vec3(uPrime).add_(new Vec3(vPrime).mul_((float) tMin));
         Vec3 N = new Vec3(Glm.transpose_(currentObject.getIT()).mul_(new Vec4(p, Constants.VEC))).normalize();
-
-        //return Glm.abs_(N);
-
-        Vec3 color = this.scene.getAmbientLight().mul_(currentObject.getMaterial().getDiffuse());
-        Vec3 diffuse = new Vec3(0.0f);
-        Vec3 specular = new Vec3(0.0f);
-        Vec3 reflection = new Vec3(0.0f);
-        Vec3 refraction = new Vec3(0.0f);
-
         Vec3 V = new Vec3(ray.getDirection()).mul_(-1.0f).normalize();
 
-        for(Light light : this.scene.getLights())
-        {
-            Vec3 L = (light.getPosition().sub_(pWorld)).normalize();
-            Vec3 H = V.add_(L).normalize();
+        Vec3 color = this.scene.getAmbientLight().mul_(currentObject.getMaterial().getDiffuse());
+        Vec3 phong = this.calculatePhongLightingColor(currentObject, pWorld, V, N);
+        Vec3 reflection = this.calculateReflectiveColor(currentObject, pWorld, N, V, depth);
+        Vec3 refraction = new Vec3(0.0f);
 
-            float diffuseCoefficent = (float) Math.max(N.dot(L), 0.0);
-            diffuse = diffuse.add_(light.getColor().mul_(diffuseCoefficent).mul_(currentObject.getMaterial().getDiffuse()));
-
-            float specularCoefficent = (float) Math.pow(Math.max(H.dot(N), 0.0), currentObject.getMaterial().getShininess() * Constants.BLINN_EXPONENT_MULTIPLIER);
-            specular = specular.add_(new Vec3(light.getColor().mul_(specularCoefficent).mul_(currentObject.getMaterial().getSpecular())));
-        }
-
-        Vec3 returnColor = color.add_(diffuse).add_(specular).add_(reflection).add_(refraction);
+        Vec3 returnColor = color.add_(phong).add_(reflection).add_(refraction);
 
         return new Vec3(
                 Math.min(returnColor.x, 1.0f),
                 Math.min(returnColor.y, 1.0f),
                 Math.min(returnColor.z, 1.0f));
+    }
+
+    private Vec3 calculatePhongLightingColor(SceneObject object, Vec3 P, Vec3 V, Vec3 N)
+    {
+        Vec3 diffuse = new Vec3(0.0f);
+        Vec3 specular = new Vec3(0.0f);
+
+        for(Light light : this.scene.getLights())
+        {
+            Vec3 L = (light.getPosition().sub_(P)).normalize();
+            Vec3 H = V.add_(L).normalize();
+
+            if(shadow(P, L, N))
+                continue;
+
+            float diffuseCoefficent = (float) Math.max(N.dot(L), 0.0);
+            diffuse = diffuse.add_(light.getColor().mul_(diffuseCoefficent).mul_(object.getMaterial().getDiffuse()));
+
+            float specularCoefficent = (float) Math.pow(Math.max(H.dot(N), 0.0), object.getMaterial().getShininess() * Constants.BLINN_EXPONENT_MULTIPLIER);
+            specular = specular.add_(new Vec3(light.getColor().mul_(specularCoefficent).mul_(object.getMaterial().getSpecular())));
+        }
+
+        return diffuse.add_(specular);
+    }
+
+    private Vec3 calculateReflectiveColor(SceneObject object, Vec3 P, Vec3 N, Vec3 V, int depth)
+    {
+        Vec3 specular = object.getMaterial().getSpecular();
+
+        if(specular.x != 0.0f && specular.y != 0.0f && specular.z != 0.0f)
+        {
+            Ray reflect = new Ray(
+                    new Vec4(P.add_(N.mul_((float) Constants.CANCER_DELTA)), Constants.POINT),
+                    new Vec4(V.sub_(N.mul_(V.dot(N)).mul_(2)).normalize(), Constants.VEC).mul_(-1)
+            );
+
+            return object.getMaterial().getSpecular().mul_(trace(reflect, depth + 1, object.getMaterial().getRefractiveIndex()));
+        }
+
+        return new Vec3(0.0f);
+    }
+
+    private boolean shadow(Vec3 P, Vec3 L, Vec3 N)
+    {
+        Ray ray = new Ray(
+                new Vec4(P.add_(N.mul_((float) Constants.CANCER_DELTA)), Constants.POINT),
+                new Vec4(L , Constants.VEC).normalize());
+
+        for(SceneObject object : this.scene.getSceneObjects())
+        {
+            if (object.intersect(new Intersection(ray)))
+                return true;
+        }
+
+        return false;
     }
 }

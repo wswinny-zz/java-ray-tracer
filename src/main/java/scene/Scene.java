@@ -29,6 +29,11 @@ public class Scene
         this.lights = new ArrayList<Light>();
     }
 
+    public Scene()
+    {
+        this(0, 0);
+    }
+
     public Vec3 getBackgroundColor()
     {
         return backgroundColor;

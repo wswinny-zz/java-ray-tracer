@@ -10,7 +10,7 @@ public class Constants
     public static final int MAX_RECURSIVE_DEPTH = 5;
     public static final double INFINITY = 1e9;
 
-    public static final double CANCER_DELTA = 0.0001;
+    public static final double CANCER_DELTA = 0.001;
     public static final double BLINN_EXPONENT_MULTIPLIER = 4.0;
     public static final double AIR_REFRACTIVE_INDEX = 1.0002926;
 

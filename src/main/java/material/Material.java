@@ -25,6 +25,20 @@ public class Material
         this.refractiveIndex = refractiveIndex;
     }
 
+    public Material(Vec3 diffuse, Vec3 specular, double shininess)
+    {
+        this(diffuse, specular, new Vec3(0.0, 0.0, 0.0), shininess, Constants.AIR_REFRACTIVE_INDEX);
+    }
+
+    public Material(Material material)
+    {
+        this(new Vec3(material.getDiffuse()),
+                new Vec3(material.getSpecular()),
+                new Vec3(material.getRefraction()),
+                material.getShininess(),
+                material.getRefractiveIndex());
+    }
+
     public Vec3 getDiffuse()
     {
         return diffuse;
