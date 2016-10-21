@@ -32,7 +32,7 @@ public class Triangle extends SceneObject
 
     public Triangle(Mat4 T, Vec3 a, Vec3 b, Vec3 c)
     {
-        this(T, a, b, c, new Vec4((b.min_(a)).mul_(b.min_(c)), Constants.VEC).normalize());
+        this(T, a, b, c, new Vec4(Glm.cross((b.min_(a)),(b.min_(c))), Constants.VEC).normalize());
     }
 
     @Override

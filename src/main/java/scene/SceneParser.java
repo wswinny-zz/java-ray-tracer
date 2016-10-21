@@ -1,16 +1,18 @@
 package scene;
 
+import com.owens.oobjloader.builder.Build;
+import com.owens.oobjloader.builder.Face;
+import com.owens.oobjloader.parser.Parse;
 import glm.mat._4.Mat4;
 import glm.vec._3.Vec3;
+import glm.vec._4.Vec4;
 import light.Light;
 import material.Material;
 import sceneobjects.Sphere;
 import sceneobjects.Triangle;
+import utils.Constants;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.Stack;
 
 public class SceneParser
@@ -24,7 +26,50 @@ public class SceneParser
         this.scene = new Scene();
     }
 
-    public Scene parseSceneFile()
+    public Scene parseObjFile()
+    {
+        Mat4 defaultTrans = new Mat4(1.0f);
+
+        Material defaultMat = new Material(new Vec3(1.0, 1.0, 1.0),
+                new Vec3(1.0, 1.0, 1.0), 5.0);
+
+        this.scene.setImageWH(1024);
+        this.scene.setCornerDist(0.5f);
+
+        this.scene.setBackgroundColor(new Vec3(0.0f, 1.0, 0.0));
+        this.scene.getLights().add(new Light(
+                new Vec3(0.0, 1.0, 1.0),
+                new Vec3(1.0, 0.0, 1.0)
+        ));
+
+        try
+        {
+            Build builder = new Build();
+            Parse obj = new Parse(builder, this.file.getName());
+
+            for(Face face : builder.faces)
+            {
+                Triangle triangle = new Triangle(
+                        defaultTrans,
+                        new Vec3(face.vertices.get(0).v.x, face.vertices.get(0).v.y, face.vertices.get(0).v.z ),
+                        new Vec3(face.vertices.get(1).v.x, face.vertices.get(1).v.y, face.vertices.get(1).v.z ),
+                        new Vec3(face.vertices.get(2).v.x, face.vertices.get(2).v.y, face.vertices.get(2).v.z )
+                );
+
+                triangle.setMaterial(defaultMat);
+                triangle.setN(new Vec4(face.vertices.get(0).n.x, face.vertices.get(0).n.y, face.vertices.get(0).n.z, Constants.VEC));
+                this.scene.getSceneObjects().add(triangle);
+            }
+        }
+        catch (Exception e)
+        {
+
+        }
+
+        return this.scene;
+    }
+
+    public Scene parseScnFile()
     {
         Stack<Mat4> currentTransform = new Stack<Mat4>();
         Stack<Material> currentMaterial = new Stack<Material>();

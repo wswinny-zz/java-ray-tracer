@@ -40,13 +40,21 @@ public class RayTracer
         this.executorService = Executors.newFixedThreadPool(10);
 
         this.castRays();
+
+        System.out.println("Casted Rays");
+        System.out.println("Waiting for rays to finish tracing");
+
         this.waitForFutures();
         this.outputImage();
+
+        System.out.println("Done!");
     }
 
     public static void main(String [] beans)
     {
-        Scene scene = new SceneParser(new File("simple.scn")).parseSceneFile();
+        Scene scene = new SceneParser(new File("export.obj")).parseObjFile();
+
+        System.out.println("Parsed Scene");
 
         new RayTracer(scene);
     }
@@ -112,8 +120,6 @@ public class RayTracer
                 this.futures.add(future);
             }
         }
-
-        System.out.println("Done!");
     }
 
     private Vec3 trace(Ray ray, int depth, double currentRefractiveIndex)

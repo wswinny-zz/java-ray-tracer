@@ -7,7 +7,7 @@ public class Constants
     public static final int POINT = 1;
     public static final int VEC   = 0;
 
-    public static final int MAX_RECURSIVE_DEPTH = 15;
+    public static final int MAX_RECURSIVE_DEPTH = 5;
     public static final double INFINITY = 1e9;
 
     public static final double CANCER_DELTA = 0.001;
