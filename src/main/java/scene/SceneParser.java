@@ -5,6 +5,7 @@ import glm.vec._3.Vec3;
 import light.Light;
 import material.Material;
 import sceneobjects.Sphere;
+import sceneobjects.Triangle;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -46,7 +47,7 @@ public class SceneParser
                 if(line.equals(""))
                     continue;
 
-                String [] splitLine = line.split(" ");
+                String [] splitLine = line.trim().split(" ");
 
                 switch(splitLine[0])
                 {
@@ -99,6 +100,29 @@ public class SceneParser
                         Sphere sphere = new Sphere(new Mat4(currentTransform.peek()));
                         sphere.setMaterial(currentMaterial.peek());
                         this.scene.getSceneObjects().add(sphere);
+                        break;
+                    case "triangle":
+                        Vec3 a = new Vec3(
+                                Double.parseDouble(splitLine[1]),
+                                Double.parseDouble(splitLine[2]),
+                                Double.parseDouble(splitLine[3])
+                        );
+
+                        Vec3 b = new Vec3(
+                                Double.parseDouble(splitLine[4]),
+                                Double.parseDouble(splitLine[5]),
+                                Double.parseDouble(splitLine[6])
+                        );
+
+                        Vec3 c = new Vec3(
+                                Double.parseDouble(splitLine[7]),
+                                Double.parseDouble(splitLine[8]),
+                                Double.parseDouble(splitLine[9])
+                        );
+
+                        Triangle triangle = new Triangle(new Mat4(currentTransform.peek()), a, b, c);
+                        triangle.setMaterial(currentMaterial.peek());
+                        this.scene.getSceneObjects().add(triangle);
                         break;
                     case "material":
                         Vec3 diffuse = new Vec3(

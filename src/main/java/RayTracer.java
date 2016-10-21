@@ -42,13 +42,11 @@ public class RayTracer
         this.castRays();
         this.waitForFutures();
         this.outputImage();
-
-        System.exit(0);
     }
 
     public static void main(String [] beans)
     {
-        Scene scene = new SceneParser(new File("sf4.scn")).parseSceneFile();
+        Scene scene = new SceneParser(new File("simple.scn")).parseSceneFile();
 
         new RayTracer(scene);
     }
@@ -148,12 +146,14 @@ public class RayTracer
 
         Vec3 pWorld = new Vec3(ray.getOrigin()).add_(new Vec3(ray.getDirection()).mul_((float) tMin));
         Vec3 p = new Vec3(uPrime).add_(new Vec3(vPrime).mul_((float) tMin));
-        Vec3 N = new Vec3(Glm.transpose_(currentObject.getIT()).mul_(new Vec4(p, Constants.VEC))).normalize();
+        Vec3 N = currentObject.getNormal(p);
         Vec3 V = new Vec3(ray.getDirection()).mul_(-1.0f).normalize();
+
+        //return N.abs();
 
         Vec3 color = this.scene.getAmbientLight().mul_(currentObject.getMaterial().getDiffuse());
         Vec3 phong = this.calculatePhongLightingColor(currentObject, pWorld, V, N);
-        Vec3 reflection = this.calculateReflectiveColor(currentObject, pWorld, N, V, depth);
+        Vec3 reflection = this.calculateReflectiveColor(currentObject, pWorld, N, V, depth, currentRefractiveIndex);
         Vec3 refraction = this.calculateRefractiveColor(currentObject, ray, N, pWorld, depth, currentRefractiveIndex);
 
         Vec3 returnColor = color.add_(phong).add_(reflection).add_(refraction);
@@ -172,6 +172,7 @@ public class RayTracer
         for(Light light : this.scene.getLights())
         {
             Vec3 L = (light.getPosition().sub_(P)).normalize();
+            Vec3 R = L.sub_(N.mul_(L.dot(N)).mul_(2.0f)).normalize(); //reflection from L
             Vec3 H = V.add_(L).normalize();
 
             if(shadow(P, L, N))
@@ -187,7 +188,7 @@ public class RayTracer
         return diffuse.add_(specular);
     }
 
-    private Vec3 calculateReflectiveColor(SceneObject object, Vec3 P, Vec3 N, Vec3 V, int depth)
+    private Vec3 calculateReflectiveColor(SceneObject object, Vec3 P, Vec3 N, Vec3 V, int depth, double currentRefractiveIndex)
     {
         Vec3 specular = object.getMaterial().getSpecular();
 
@@ -198,7 +199,7 @@ public class RayTracer
                     new Vec4(V.sub_(N.mul_(V.dot(N)).mul_(2)).normalize(), Constants.VEC).mul_(-1.0f)
             );
 
-            return object.getMaterial().getSpecular().mul_(trace(reflect, depth + 1, object.getMaterial().getRefractiveIndex()));
+            return object.getMaterial().getSpecular().mul_(trace(reflect, depth + 1, currentRefractiveIndex));
         }
 
         return new Vec3(0.0f);
@@ -223,8 +224,8 @@ public class RayTracer
                 currentRefractiveIndex = object.getMaterial().getRefractiveIndex();
             }
 
-            double ni = N.dot(new Vec3(ray.getDirection().mul_(-1))); // n dot i
-            double sqrtInside = 1 - nr * nr * (1 - (ni * ni)); //inside the sqrt
+            double ni = N.dot(new Vec3(ray.getDirection())); // n dot i
+            double sqrtInside = 1.0 - (nr * nr) * (1.0 - (ni * ni)); //inside the sqrt
 
             if(sqrtInside > 0)
             {

@@ -1,5 +1,6 @@
 package sceneobjects;
 
+import glm.vec._3.Vec3;
 import material.Material;
 import utils.Intersection;
 import glm.mat._4.Mat4;
@@ -12,6 +13,8 @@ public abstract class SceneObject
     protected Material material;
     protected Mat4 T;
     protected Mat4 IT;
+
+    public abstract Vec3 getNormal(Vec3 P);
 
     public abstract boolean intersect(Intersection intersection);
 

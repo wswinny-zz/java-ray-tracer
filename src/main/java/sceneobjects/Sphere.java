@@ -1,5 +1,7 @@
 package sceneobjects;
 
+import glm.Glm;
+import utils.Constants;
 import utils.Intersection;
 import utils.QuadraticSolution;
 import utils.RTMath;
@@ -18,6 +20,13 @@ public class Sphere extends SceneObject
         this.IT = this.T.inverse();
     }
 
+    @Override
+    public Vec3 getNormal(Vec3 P)
+    {
+        return new Vec3(Glm.transpose_(this.getIT()).mul_(new Vec4(P, Constants.VEC))).normalize();
+    }
+
+    @Override
     public boolean intersect(Intersection intersection)
     {
         Vec4 uPrime = this.IT.mul_(intersection.getRay().getOrigin());
