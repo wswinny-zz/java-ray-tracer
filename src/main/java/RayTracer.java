@@ -14,13 +14,18 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class RayTracer
 {
     private Scene scene;
     private BufferedImage image;
+    private ExecutorService executorService;
+    private ArrayList<Future<?>> futures;
 
     public RayTracer(Scene scene)
     {
@@ -31,13 +36,14 @@ public class RayTracer
 
         new gui.Window(this.image);
 
-        this.castRays();
-        this.outputImage();
-    }
+        this.futures = new ArrayList<Future<?>>();
+        this.executorService = Executors.newFixedThreadPool(10);
 
-    private void pv3(Vec3 v)
-    {
-        System.out.printf("%-10f %-10f %-10f \n", v.x, v.y, v.z);
+        this.castRays();
+        this.waitForFutures();
+        this.outputImage();
+
+        System.exit(0);
     }
 
     public static void main(String [] beans)
@@ -60,12 +66,25 @@ public class RayTracer
         }
     }
 
+    private void waitForFutures()
+    {
+        for(Future<?> future : this.futures)
+        {
+            try
+            {
+                future.get();
+            }
+            catch (InterruptedException | ExecutionException e)
+            {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private void castRays()
     {
         double pixelWidth = (2 * this.scene.getCornerDist()) / this.scene.getImageWH();
         double halfPixWidth = pixelWidth / 2.0;
-
-        ExecutorService executorService = Executors.newFixedThreadPool(150);
 
         for(int y = 0; y < this.scene.getImageWH(); ++y)
         {
@@ -74,7 +93,7 @@ public class RayTracer
                 final int finalX = x;
                 final int finalY = y;
 
-                executorService.submit(() ->
+                Future<?> future = this.executorService.submit(() ->
                 {
                     double pixX = (-this.scene.getCornerDist() + (pixelWidth / 2.0)) + (finalX * pixelWidth);
                     double pixY = (+this.scene.getCornerDist() - (pixelWidth / 2.0)) - (finalY * pixelWidth);
@@ -92,9 +111,11 @@ public class RayTracer
                     g.fillRect(finalX, finalY, 1, 1);
                 });
 
-
+                this.futures.add(future);
             }
         }
+
+        System.out.println("Done!");
     }
 
     private Vec3 trace(Ray ray, int depth, double currentRefractiveIndex)
