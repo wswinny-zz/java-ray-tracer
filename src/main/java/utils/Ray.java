@@ -18,8 +18,8 @@ public class Ray
 
     public void print()
     {
-        System.out.printf("o: %f %f %f %f \t", this.origin.x, this.origin.y, this.origin.w, this.origin.z);
-        System.out.printf("d: %f %f %f %f\n", this.direction.x, this.direction.y, this.direction.w, this.direction.z);
+        System.out.printf("o: %f %f %f %f \t", this.origin.x, this.origin.y, this.origin.z, this.origin.w);
+        System.out.printf("d: %f %f %f %f\n", this.direction.x, this.direction.y, this.direction.z, this.direction.w);
     }
 
     public Vec4 getOrigin()

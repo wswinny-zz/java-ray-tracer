@@ -14,6 +14,8 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RayTracer
 {
@@ -27,13 +29,20 @@ public class RayTracer
                 this.scene.getImageWH(),
                 BufferedImage.TYPE_INT_RGB);
 
+        new gui.Window(this.image);
+
         this.castRays();
         this.outputImage();
     }
 
+    private void pv3(Vec3 v)
+    {
+        System.out.printf("%-10f %-10f %-10f \n", v.x, v.y, v.z);
+    }
+
     public static void main(String [] beans)
     {
-        Scene scene = new SceneParser(new File("simple.scn")).parseSceneFile();
+        Scene scene = new SceneParser(new File("sf4.scn")).parseSceneFile();
 
         new RayTracer(scene);
     }
@@ -56,24 +65,34 @@ public class RayTracer
         double pixelWidth = (2 * this.scene.getCornerDist()) / this.scene.getImageWH();
         double halfPixWidth = pixelWidth / 2.0;
 
+        ExecutorService executorService = Executors.newFixedThreadPool(150);
+
         for(int y = 0; y < this.scene.getImageWH(); ++y)
         {
             for(int x = 0; x < this.scene.getImageWH(); ++x)
             {
-                double pixX = (-this.scene.getCornerDist() + (pixelWidth / 2.0)) + (x * pixelWidth);
-                double pixY = (+this.scene.getCornerDist() - (pixelWidth / 2.0)) - (y * pixelWidth);
+                final int finalX = x;
+                final int finalY = y;
 
-                Vec4 direction = new Vec4(pixX, pixY, 0.0, Constants.POINT);
-                direction = Glm.sub_(direction, Constants.CAMERA);
-                direction = direction.normalize();
+                executorService.submit(() ->
+                {
+                    double pixX = (-this.scene.getCornerDist() + (pixelWidth / 2.0)) + (finalX * pixelWidth);
+                    double pixY = (+this.scene.getCornerDist() - (pixelWidth / 2.0)) - (finalY * pixelWidth);
 
-                Ray ray = new Ray(Constants.CAMERA, direction);
+                    Vec4 direction = new Vec4(pixX, pixY, 0.0, Constants.POINT);
+                    direction = Glm.sub_(direction, Constants.CAMERA);
+                    direction = direction.normalize();
 
-                Vec3 color = this.trace(ray, 0, Constants.AIR_REFRACTIVE_INDEX);
+                    Ray ray = new Ray(Constants.CAMERA, direction);
 
-                Graphics g = this.image.getGraphics();
-                g.setColor(new Color(color.x, color.y, color.z));
-                g.fillRect(x, y, 1, 1);
+                    Vec3 color = this.trace(ray, 0, Constants.AIR_REFRACTIVE_INDEX);
+
+                    Graphics g = this.image.getGraphics();
+                    g.setColor(new Color(color.x, color.y, color.z));
+                    g.fillRect(finalX, finalY, 1, 1);
+                });
+
+
             }
         }
     }
@@ -81,7 +100,7 @@ public class RayTracer
     private Vec3 trace(Ray ray, int depth, double currentRefractiveIndex)
     {
         if(depth > Constants.MAX_RECURSIVE_DEPTH)
-            return new Vec3(0.0, 0.0, 0.0);
+            return new Vec3(0.0f);
 
         double tMin = Constants.INFINITY;
         SceneObject currentObject = null;
@@ -114,7 +133,7 @@ public class RayTracer
         Vec3 color = this.scene.getAmbientLight().mul_(currentObject.getMaterial().getDiffuse());
         Vec3 phong = this.calculatePhongLightingColor(currentObject, pWorld, V, N);
         Vec3 reflection = this.calculateReflectiveColor(currentObject, pWorld, N, V, depth);
-        Vec3 refraction = new Vec3(0.0f);
+        Vec3 refraction = this.calculateRefractiveColor(currentObject, ray, N, pWorld, depth, currentRefractiveIndex);
 
         Vec3 returnColor = color.add_(phong).add_(reflection).add_(refraction);
 
@@ -151,11 +170,11 @@ public class RayTracer
     {
         Vec3 specular = object.getMaterial().getSpecular();
 
-        if(specular.x != 0.0f && specular.y != 0.0f && specular.z != 0.0f)
+        if(specular.x != 0 || specular.y != 0 || specular.z != 0)
         {
             Ray reflect = new Ray(
                     new Vec4(P.add_(N.mul_((float) Constants.CANCER_DELTA)), Constants.POINT),
-                    new Vec4(V.sub_(N.mul_(V.dot(N)).mul_(2)).normalize(), Constants.VEC).mul_(-1)
+                    new Vec4(V.sub_(N.mul_(V.dot(N)).mul_(2)).normalize(), Constants.VEC).mul_(-1.0f)
             );
 
             return object.getMaterial().getSpecular().mul_(trace(reflect, depth + 1, object.getMaterial().getRefractiveIndex()));
@@ -163,6 +182,43 @@ public class RayTracer
 
         return new Vec3(0.0f);
     }
+
+    private Vec3 calculateRefractiveColor(SceneObject object, Ray ray, Vec3 N, Vec3 P, int depth, double currentRefractiveIndex)
+    {
+        Vec3 refraction = object.getMaterial().getRefraction();
+
+        if(refraction.x != 0.0f || refraction.y != 0.0f || refraction.z != 0.0f)
+        {
+            double nr;
+            if(new Vec3(ray.getDirection()).dot(N) > 0) //are we inside the sphere
+            {
+                nr = currentRefractiveIndex / Constants.AIR_REFRACTIVE_INDEX;
+                currentRefractiveIndex = Constants.AIR_REFRACTIVE_INDEX;
+                N = N.mul_(-1); //make the normal point the other direction
+            }
+            else //to another material
+            {
+                nr = currentRefractiveIndex / object.getMaterial().getRefractiveIndex();
+                currentRefractiveIndex = object.getMaterial().getRefractiveIndex();
+            }
+
+            double ni = N.dot(new Vec3(ray.getDirection().mul_(-1))); // n dot i
+            double sqrtInside = 1 - nr * nr * (1 - (ni * ni)); //inside the sqrt
+
+            if(sqrtInside > 0)
+            {
+                Ray refract = new Ray(
+                        new Vec4(P.sub_(N.mul_((float) Constants.CANCER_DELTA)), Constants.POINT),
+                        new Vec4(N.mul_((float) (nr * ni - Math.sqrt(sqrtInside))).sub_(new Vec3(ray.getDirection().mul_(-1)).mul_((float) nr)), Constants.VEC).normalize()
+                );
+
+                return object.getMaterial().getRefraction().mul_(trace(refract, depth + 1, currentRefractiveIndex));
+            }
+        }
+
+        return new Vec3(0.0f);
+    }
+
 
     private boolean shadow(Vec3 P, Vec3 L, Vec3 N)
     {

@@ -46,8 +46,6 @@ public class SceneParser
                 if(line.equals(""))
                     continue;
 
-                System.out.printf("Parsing line: '%s'\n", line);
-
                 String [] splitLine = line.split(" ");
 
                 switch(splitLine[0])
