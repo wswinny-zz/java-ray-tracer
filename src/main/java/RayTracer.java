@@ -27,6 +27,8 @@ public class RayTracer
     private ExecutorService executorService;
     private ArrayList<Future<?>> futures;
 
+    private boolean returnNormals = false;
+
     public RayTracer(Scene scene)
     {
         this.scene = scene;
@@ -52,7 +54,7 @@ public class RayTracer
 
     public static void main(String [] beans)
     {
-        Scene scene = new SceneParser(new File("export.obj")).parseObjFile();
+        Scene scene = new SceneParser(new File("monkey.obj")).parseObjFile();
 
         System.out.println("Parsed Scene");
 
@@ -112,9 +114,16 @@ public class RayTracer
 
                     Vec3 color = this.trace(ray, 0, Constants.AIR_REFRACTIVE_INDEX);
 
-                    Graphics g = this.image.getGraphics();
-                    g.setColor(new Color(color.x, color.y, color.z));
-                    g.fillRect(finalX, finalY, 1, 1);
+                    try
+                    {
+                        Graphics g = this.image.getGraphics();
+                        g.setColor(new Color(color.x, color.y, color.z));
+                        g.fillRect(finalX, finalY, 1, 1);
+                    }
+                    catch(Exception e)
+                    {
+                        System.out.printf("Color out of range: %f %f %f\n", color.x, color.y, color.z);
+                    }
                 });
 
                 this.futures.add(future);
@@ -155,7 +164,8 @@ public class RayTracer
         Vec3 N = currentObject.getNormal(p);
         Vec3 V = new Vec3(ray.getDirection()).mul_(-1.0f).normalize();
 
-        //return N.abs();
+        if(this.returnNormals)
+            return N.abs();
 
         Vec3 color = this.scene.getAmbientLight().mul_(currentObject.getMaterial().getDiffuse());
         Vec3 phong = this.calculatePhongLightingColor(currentObject, pWorld, V, N);
@@ -167,7 +177,7 @@ public class RayTracer
         return new Vec3(
                 Math.min(returnColor.x, 1.0f),
                 Math.min(returnColor.y, 1.0f),
-                Math.min(returnColor.z, 1.0f));
+                Math.min(returnColor.z, 1.0f)).abs();
     }
 
     private Vec3 calculatePhongLightingColor(SceneObject object, Vec3 P, Vec3 V, Vec3 N)

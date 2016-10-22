@@ -29,18 +29,33 @@ public class SceneParser
     public Scene parseObjFile()
     {
         Mat4 defaultTrans = new Mat4(1.0f);
+        Vec3 modelTrans = new Vec3(0.0, 0.0, -3.0);
 
-        Material defaultMat = new Material(new Vec3(1.0, 1.0, 1.0),
-                new Vec3(1.0, 1.0, 1.0), 5.0);
+        Material defaultMat = new Material(
+                new Vec3(1.0, 1.0, 1.0),
+                new Vec3(0.2, 0.2, 0.2),
+                30.0);
 
-        this.scene.setImageWH(1024);
+        this.scene.setImageWH(2048);
         this.scene.setCornerDist(0.5f);
 
-        this.scene.setBackgroundColor(new Vec3(0.0f, 1.0, 0.0));
+        this.scene.setBackgroundColor(new Vec3(0.0f, 0.0, 0.0));
+        this.scene.setAmbientLight(new Vec3(0.3, 0.3, 0.3));
+
         this.scene.getLights().add(new Light(
-                new Vec3(0.0, 1.0, 1.0),
-                new Vec3(1.0, 0.0, 1.0)
+                new Vec3(0.0, 0.3, 5.0),
+                new Vec3(0.3, 0.3, 0.3)
         ));
+
+//        this.scene.getLights().add(new Light(
+//                new Vec3(0.0, 0.0, 0.0),
+//                new Vec3(0.0, 0.3, 0.0)
+//        ));
+//
+//        this.scene.getLights().add(new Light(
+//                new Vec3(0.0, -1.0, 0.0),
+//                new Vec3(0.0, 0.0, 0.3)
+//        ));
 
         try
         {
@@ -51,9 +66,9 @@ public class SceneParser
             {
                 Triangle triangle = new Triangle(
                         defaultTrans,
-                        new Vec3(face.vertices.get(0).v.x, face.vertices.get(0).v.y, face.vertices.get(0).v.z ),
-                        new Vec3(face.vertices.get(1).v.x, face.vertices.get(1).v.y, face.vertices.get(1).v.z ),
-                        new Vec3(face.vertices.get(2).v.x, face.vertices.get(2).v.y, face.vertices.get(2).v.z )
+                        new Vec3(face.vertices.get(0).v.x, face.vertices.get(0).v.y, face.vertices.get(0).v.z).add_(modelTrans),
+                        new Vec3(face.vertices.get(1).v.x, face.vertices.get(1).v.y, face.vertices.get(1).v.z).add_(modelTrans),
+                        new Vec3(face.vertices.get(2).v.x, face.vertices.get(2).v.y, face.vertices.get(2).v.z).add_(modelTrans)
                 );
 
                 triangle.setMaterial(defaultMat);
